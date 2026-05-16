@@ -118,10 +118,16 @@ services:
     container_name: reckon-portal-watchtower
     restart: unless-stopped
     environment:
+      # Without DOCKER_API_VERSION, watchtower's compiled-in client
+      # negotiates with API 1.25 and Docker 29 rejects it. Pin to
+      # something the daemon understands. 1.44 is what macula-realm
+      # ships and matches Docker 25+ minimum.
+      DOCKER_API_VERSION: "1.44"
       WATCHTOWER_LABEL_ENABLE: "true"
       WATCHTOWER_CLEANUP: "true"
       WATCHTOWER_POLL_INTERVAL: "300"
       WATCHTOWER_ROLLING_RESTART: "true"
+      WATCHTOWER_INCLUDE_RESTARTING: "true"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
