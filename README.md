@@ -65,8 +65,16 @@ Caddy serves the apex `reckon-db.org` and 301s `www.reckon-db.org` → apex. To 
 1. Add an A/AAAA record for the subdomain
 2. Add a Caddyfile block — see `caddy/Caddyfile` for the template
 
+## Mailgun
+
+Shares the **same Mailgun account** as `macula-realm-compose`. To wire it up:
+1. Copy the API key value from macula-realm's `.env` (`MACULA_MAILGUN_API_KEY`) into `RECKON_MAILGUN_API_KEY` here.
+2. Add a Mailgun-verified sending domain `mg.reckon-db.org` (DNS records via the Mailgun dashboard).
+3. **One-liner code change required:** `reckon-portal/system/config/runtime.exs` currently has the `Swoosh.Adapters.Mailgun` config block commented out — uncomment it to read `RECKON_MAILGUN_*` env vars. Until that lands in the image, Swoosh falls back to the Local adapter and emails go nowhere.
+
 ## What's NOT here
 
 - Multi-node / clustered reckon-db (different concern, lives in `reckon-internal/deploy/` eventually)
-- Backups (TODO — pg_dump on a cron, off-VM destination)
+- Backups (TODO — pg_dump on a cron, off-VM destination — `reckon_site_deploy/backup.sh` has a working template worth porting)
 - Metrics (TODO — Prometheus scrape endpoint exists in the portal at `/metrics`, no exporter wired)
+- Cluster config (the old `reckon_site_deploy/.env.example` had `CLUSTER_*` vars for multi-node — single-VM doesn't need them; reintroduce when scaling)
