@@ -1,0 +1,22 @@
+# Caddy config — reckon-db.org → reckon-portal:4000
+#
+# Single domain (no wildcard), so HTTP-01 challenge works out of
+# the box. The www. variant 301s to apex.
+
+reckon-db.org {
+	encode gzip zstd
+	reverse_proxy reckon-portal:4000 {
+		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-Proto https
+	}
+
+	log {
+		output stdout
+		format console
+		level INFO
+	}
+}
+
+www.reckon-db.org {
+	redir https://reckon-db.org{uri} 301
+}

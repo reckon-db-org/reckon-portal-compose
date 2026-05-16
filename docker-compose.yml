@@ -1,0 +1,107 @@
+# reckon-portal production deployment (reckon-db.org)
+#
+# Services:
+#   - postgres:        PostgreSQL 16 — two databases (reckon_portal_prod,
+#                      reckon_martha_projects), created by init script.
+#   - reckon-portal:   Phoenix umbrella release (beamcampus/reckon-portal).
+#                      Migrates on start (overlay script), serves on :4000.
+#   - caddy:           Reverse proxy + automatic HTTPS (HTTP-01 challenge).
+#                      Single domain; no DNS-01 plugin needed.
+#   - watchtower:      Pulls latest images for opted-in containers.
+#
+# Ports:
+#   - 80, 443: caddy
+#
+# Usage:
+#   ./scripts/deploy.sh init      # First-time setup
+#   ./scripts/deploy.sh up
+#   ./scripts/deploy.sh update    # Pull new image, restart, migrate
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: reckon-portal-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-reckon_portal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-reckon_portal_prod}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql:ro
+    networks:
+      - portal-internal
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - "pg_isready -U ${POSTGRES_USER:-reckon_portal} -d ${POSTGRES_DB:-reckon_portal_prod}"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  reckon-portal:
+    image: beamcampus/reckon-portal:${PORTAL_VERSION:-latest}
+    container_name: reckon-portal
+    restart: unless-stopped
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+    environment:
+      PORT: "4000"
+      PHX_HOST: ${PHX_HOST:-reckon-db.org}
+      RECKON_PORTAL_DATABASE_URL: postgres://${POSTGRES_USER:-reckon_portal}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-reckon_portal_prod}
+      POSTGRES_RECKON_MARTHA_DB: ${POSTGRES_RECKON_MARTHA_DB:-reckon_martha_projects}
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE:?SECRET_KEY_BASE is required}
+      POOL_SIZE: ${POOL_SIZE:-10}
+      MARTHA_PROJECTS_POOL_SIZE: ${MARTHA_PROJECTS_POOL_SIZE:-10}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GITHUB_API_TOKEN: ${GITHUB_API_TOKEN:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - portal-internal
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:4000/"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: reckon-portal-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - reckon-portal
+    networks:
+      - portal-internal
+
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: reckon-portal-watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command:
+      - "--label-enable"
+      - "--interval=300"
+      - "--cleanup"
+    networks:
+      - portal-internal
+
+networks:
+  portal-internal:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:
