@@ -67,10 +67,11 @@ Caddy serves the apex `reckon-db.org` and 301s `www.reckon-db.org` → apex. To 
 
 ## Mailgun
 
-Shares the **same Mailgun account** as `macula-realm-compose`. To wire it up:
+Shares the **same Mailgun account** as `macula-realm-compose`. Wire-up:
 1. Copy the API key value from macula-realm's `.env` (`MACULA_MAILGUN_API_KEY`) into `RECKON_MAILGUN_API_KEY` here.
 2. Add a Mailgun-verified sending domain `mg.reckon-db.org` (DNS records via the Mailgun dashboard).
-3. **One-liner code change required:** `reckon-portal/system/config/runtime.exs` currently has the `Swoosh.Adapters.Mailgun` config block commented out — uncomment it to read `RECKON_MAILGUN_*` env vars. Until that lands in the image, Swoosh falls back to the Local adapter and emails go nowhere.
+
+That's it — `reckon-portal/system/config/runtime.exs` reads these env vars and `raise`s if `RECKON_MAILGUN_API_KEY` or `RECKON_MAILGUN_DOMAIN` is missing. The compose file matches that contract with `:?` defaults so missing values fail at `up` time, not deep in a release crash log.
 
 ## What's NOT here
 
