@@ -23,7 +23,6 @@ Check `.ssh/config` for a tidied alias; the key is unencrypted but the host requ
 | `docker-compose.yml` | Service definitions |
 | `caddy/Caddyfile` | Reverse proxy + HTTPS config (HTTP-01, single domain) |
 | `scripts/deploy.sh` | Operator CLI (init / up / down / update / migrate / logs / shell) |
-| `scripts/init-databases.sql` | Creates `reckon_martha_projects` DB on fresh postgres volume |
 | `.env.example` | Required env vars; copy to `.env` before deploying |
 
 ## CI flow
@@ -48,6 +47,5 @@ Docker Hub: `beamcampus/reckon-portal`. **Not** ghcr.io. If we ever switch publi
 ## Gotchas
 
 - **`PHX_HOST` must match the Caddy host.** Mismatches break Phoenix URL generation.
-- **`init-databases.sql` runs ONCE** — on a fresh postgres volume. If you wipe data, it re-runs; otherwise add the second DB manually (`CREATE DATABASE reckon_martha_projects;`).
 - **The Phoenix release boots before postgres is migrated.** `init` brings everything up, then run `migrate` separately. Subsequent `update` does pull → recreate → migrate automatically.
 - **No backups configured yet** — TODO. The single-VM Postgres holds all state.

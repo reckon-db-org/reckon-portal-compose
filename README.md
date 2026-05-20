@@ -10,7 +10,7 @@ Mirrors the shape of `macula-realm-compose`. Scope: one Phoenix umbrella, one Po
 |---|---|---|
 | `caddy` | 80, 443 | Reverse proxy + auto-HTTPS via HTTP-01 |
 | `reckon-portal` | — | Phoenix release (`beamcampus/reckon-portal:latest`) on container port 4000 |
-| `postgres` | — | PostgreSQL 16, two databases (`reckon_portal_prod`, `reckon_martha_projects`) |
+| `postgres` | — | PostgreSQL 16, `reckon_portal_prod` database |
 | `watchtower` | — | Pulls labeled containers on a 5-min poll |
 
 ## First-time setup

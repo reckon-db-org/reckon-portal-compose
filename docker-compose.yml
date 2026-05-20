@@ -1,8 +1,7 @@
 # reckon-portal production deployment (reckon-db.org)
 #
 # Services:
-#   - postgres:        PostgreSQL 16 — two databases (reckon_portal_prod,
-#                      reckon_martha_projects), created by init script.
+#   - postgres:        PostgreSQL 16 — the reckon_portal_prod database.
 #   - reckon-portal:   Phoenix umbrella release (beamcampus/reckon-portal).
 #                      Migrates on start (overlay script), serves on :4000.
 #   - caddy:           Reverse proxy + automatic HTTPS (HTTP-01 challenge).
@@ -28,7 +27,6 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-reckon_portal_prod}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./scripts/init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql:ro
     networks:
       - portal-internal
     healthcheck:
@@ -49,10 +47,8 @@ services:
       PORT: "4000"
       PHX_HOST: ${PHX_HOST:-reckon-db.org}
       RECKON_PORTAL_DATABASE_URL: postgres://${POSTGRES_USER:-reckon_portal}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-reckon_portal_prod}
-      POSTGRES_RECKON_MARTHA_DB: ${POSTGRES_RECKON_MARTHA_DB:-reckon_martha_projects}
       SECRET_KEY_BASE: ${SECRET_KEY_BASE:?SECRET_KEY_BASE is required}
       POOL_SIZE: ${POOL_SIZE:-10}
-      MARTHA_PROJECTS_POOL_SIZE: ${MARTHA_PROJECTS_POOL_SIZE:-10}
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
       GITHUB_API_TOKEN: ${GITHUB_API_TOKEN:-}
