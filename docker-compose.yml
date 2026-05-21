@@ -52,6 +52,9 @@ services:
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
       GITHUB_API_TOKEN: ${GITHUB_API_TOKEN:-}
+      # Blog event store (ReckonDB). Persisted on the blog_store_data volume
+      # below so the event log survives image auto-updates (watchtower).
+      BLOG_STORE_DATA_DIR: ${BLOG_STORE_DATA_DIR:-/data/blog_store}
       # Mailgun — same account as macula-realm, different verified domain.
       # Required by reckon-portal's runtime.exs (release raises if either
       # API_KEY or DOMAIN is missing). FROM_EMAIL and BASE_URL are optional.
@@ -77,6 +80,8 @@ services:
       STRIPE_GOLD_ANNUAL_PRICE_ID: ${STRIPE_GOLD_ANNUAL_PRICE_ID:-}
       STRIPE_SILVER_ANNUAL_PRICE_ID: ${STRIPE_SILVER_ANNUAL_PRICE_ID:-}
       STRIPE_COMMUNITY_SPONSOR_ANNUAL_PRICE_ID: ${STRIPE_COMMUNITY_SPONSOR_ANNUAL_PRICE_ID:-}
+    volumes:
+      - blog_store_data:/data/blog_store
     depends_on:
       postgres:
         condition: service_healthy
@@ -137,3 +142,4 @@ volumes:
   postgres_data:
   caddy_data:
   caddy_config:
+  blog_store_data:
