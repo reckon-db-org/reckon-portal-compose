@@ -46,6 +46,14 @@ services:
     environment:
       PORT: "4000"
       PHX_HOST: ${PHX_HOST:-reckon-db.org}
+      # Stable BEAM node name. reckon_db's Ra/Khepri persists the node name into
+      # its on-disk cluster state; the default name is <app>@<container-id>,
+      # which changes on every recreate, so after the first redeploy Ra waits
+      # forever for a "leader" node that no longer exists -> the store never
+      # serves -> the whole app hangs unhealthy. A fixed name keeps the
+      # persisted state valid across container recreates.
+      RELEASE_DISTRIBUTION: name
+      RELEASE_NODE: reckon_portal@127.0.0.1
       RECKON_PORTAL_DATABASE_URL: postgres://${POSTGRES_USER:-reckon_portal}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-reckon_portal_prod}
       SECRET_KEY_BASE: ${SECRET_KEY_BASE:?SECRET_KEY_BASE is required}
       POOL_SIZE: ${POOL_SIZE:-10}
