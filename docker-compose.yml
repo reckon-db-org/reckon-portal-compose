@@ -1,12 +1,16 @@
 # reckon-portal production deployment (reckon-db.org)
 #
 # Services:
-#   - postgres:        PostgreSQL 16 — the reckon_portal_prod database.
 #   - reckon-portal:   Phoenix umbrella release (beamcampus/reckon-portal).
-#                      Migrates on start (overlay script), serves on :4000.
+#                      Stateless apart from the event-sourced blog, which
+#                      ReckonDB persists to the blog_store_data volume.
+#                      Serves on :4000.
 #   - caddy:           Reverse proxy + automatic HTTPS (HTTP-01 challenge).
 #                      Single domain; no DNS-01 plugin needed.
 #   - watchtower:      Pulls latest images for opted-in containers.
+#
+# No database: the product site has no Postgres. (The auth/membership/
+# sponsorship platform was removed; the blog is event-sourced on ReckonDB.)
 #
 # Ports:
 #   - 80, 443: caddy
@@ -14,29 +18,9 @@
 # Usage:
 #   ./scripts/deploy.sh init      # First-time setup
 #   ./scripts/deploy.sh up
-#   ./scripts/deploy.sh update    # Pull new image, restart, migrate
+#   ./scripts/deploy.sh update    # Pull new image, recreate
 
 services:
-  postgres:
-    image: postgres:16
-    container_name: reckon-portal-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-reckon_portal}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
-      POSTGRES_DB: ${POSTGRES_DB:-reckon_portal_prod}
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    networks:
-      - portal-internal
-    healthcheck:
-      test:
-        - CMD-SHELL
-        - "pg_isready -U ${POSTGRES_USER:-reckon_portal} -d ${POSTGRES_DB:-reckon_portal_prod}"
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   reckon-portal:
     image: beamcampus/reckon-portal:${PORTAL_VERSION:-latest}
     container_name: reckon-portal
@@ -54,45 +38,19 @@ services:
       # persisted state valid across container recreates.
       RELEASE_DISTRIBUTION: name
       RELEASE_NODE: reckon_portal@127.0.0.1
-      RECKON_PORTAL_DATABASE_URL: postgres://${POSTGRES_USER:-reckon_portal}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-reckon_portal_prod}
       SECRET_KEY_BASE: ${SECRET_KEY_BASE:?SECRET_KEY_BASE is required}
-      POOL_SIZE: ${POOL_SIZE:-10}
-      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
-      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
-      GITHUB_API_TOKEN: ${GITHUB_API_TOKEN:-}
       # Blog event store (ReckonDB). Persisted on the blog_store_data volume
       # below so the event log survives image auto-updates (watchtower).
       BLOG_STORE_DATA_DIR: ${BLOG_STORE_DATA_DIR:-/data/blog_store}
       # Mailgun — same account as macula-realm, different verified domain.
       # Required by reckon-portal's runtime.exs (release raises if either
-      # API_KEY or DOMAIN is missing). FROM_EMAIL and BASE_URL are optional.
+      # API_KEY or DOMAIN is missing). Used for the contact form.
       RECKON_MAILGUN_API_KEY: ${RECKON_MAILGUN_API_KEY:?RECKON_MAILGUN_API_KEY is required}
       RECKON_MAILGUN_DOMAIN:  ${RECKON_MAILGUN_DOMAIN:?RECKON_MAILGUN_DOMAIN is required}
       RECKON_MAILGUN_BASE_URL: ${RECKON_MAILGUN_BASE_URL:-https://api.eu.mailgun.net/v3}
       RECKON_MAILGUN_FROM_EMAIL: ${RECKON_MAILGUN_FROM_EMAIL:-noreply@reckon-db.org}
-      # Stripe (payments + memberships)
-      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
-      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
-      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
-      STRIPE_MEMBER_MONTHLY_PRICE_ID: ${STRIPE_MEMBER_MONTHLY_PRICE_ID:-}
-      STRIPE_VIP_MONTHLY_PRICE_ID: ${STRIPE_VIP_MONTHLY_PRICE_ID:-}
-      STRIPE_PRO_MONTHLY_PRICE_ID: ${STRIPE_PRO_MONTHLY_PRICE_ID:-}
-      STRIPE_MEMBER_ANNUAL_PRICE_ID: ${STRIPE_MEMBER_ANNUAL_PRICE_ID:-}
-      STRIPE_VIP_ANNUAL_PRICE_ID: ${STRIPE_VIP_ANNUAL_PRICE_ID:-}
-      STRIPE_PRO_ANNUAL_PRICE_ID: ${STRIPE_PRO_ANNUAL_PRICE_ID:-}
-      STRIPE_PLATINUM_MONTHLY_PRICE_ID: ${STRIPE_PLATINUM_MONTHLY_PRICE_ID:-}
-      STRIPE_GOLD_MONTHLY_PRICE_ID: ${STRIPE_GOLD_MONTHLY_PRICE_ID:-}
-      STRIPE_SILVER_MONTHLY_PRICE_ID: ${STRIPE_SILVER_MONTHLY_PRICE_ID:-}
-      STRIPE_COMMUNITY_SPONSOR_MONTHLY_PRICE_ID: ${STRIPE_COMMUNITY_SPONSOR_MONTHLY_PRICE_ID:-}
-      STRIPE_PLATINUM_ANNUAL_PRICE_ID: ${STRIPE_PLATINUM_ANNUAL_PRICE_ID:-}
-      STRIPE_GOLD_ANNUAL_PRICE_ID: ${STRIPE_GOLD_ANNUAL_PRICE_ID:-}
-      STRIPE_SILVER_ANNUAL_PRICE_ID: ${STRIPE_SILVER_ANNUAL_PRICE_ID:-}
-      STRIPE_COMMUNITY_SPONSOR_ANNUAL_PRICE_ID: ${STRIPE_COMMUNITY_SPONSOR_ANNUAL_PRICE_ID:-}
     volumes:
       - blog_store_data:/data/blog_store
-    depends_on:
-      postgres:
-        condition: service_healthy
     networks:
       - portal-internal
     healthcheck:
@@ -147,7 +105,6 @@ networks:
     driver: bridge
 
 volumes:
-  postgres_data:
   caddy_data:
   caddy_config:
   blog_store_data:
