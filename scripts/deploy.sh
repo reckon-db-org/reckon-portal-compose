@@ -21,13 +21,11 @@ Commands:
   up        Start all services.
   down      Stop all services.
   restart   Stop + start.
-  update    Pull latest images, force-recreate, then migrate.
-  migrate   Run database migrations against the running container.
-  deploy    Full deploy: pull → up → migrate.
+  update    Pull latest images, force-recreate.
+  deploy    Full deploy: pull → up.
   logs [s]  Tail logs (optionally for a single service).
   status    docker compose ps.
   shell     Open shell in the reckon-portal container.
-  remote    Run shell in the postgres container.
 EOF
 }
 
@@ -67,24 +65,15 @@ cmd_update() {
     echo "==> Pulling latest images"
     $COMPOSE pull
     echo "==> Recreating containers"
-    $COMPOSE up -d --force-recreate
-    echo "==> Running migrations"
-    cmd_migrate
-}
-
-cmd_migrate() {
-    require_env
-    $COMPOSE exec -T reckon-portal /app/bin/migrate
+    $COMPOSE up -d --force-recreate --remove-orphans
 }
 
 cmd_deploy() {
     require_env
-    echo "==> Step 1/3: pull"
+    echo "==> Step 1/2: pull"
     $COMPOSE pull
-    echo "==> Step 2/3: up"
-    $COMPOSE up -d
-    echo "==> Step 3/3: migrate"
-    cmd_migrate
+    echo "==> Step 2/2: up"
+    $COMPOSE up -d --remove-orphans
     echo "==> Deploy complete"
 }
 
@@ -104,22 +93,16 @@ cmd_shell() {
     $COMPOSE exec reckon-portal /bin/sh
 }
 
-cmd_remote() {
-    $COMPOSE exec postgres psql -U "${POSTGRES_USER:-reckon_portal}" "${POSTGRES_DB:-reckon_portal_prod}"
-}
-
 case "${1:-}" in
     init)    shift; cmd_init "$@";;
     up)      shift; cmd_up "$@";;
     down)    shift; cmd_down "$@";;
     restart) shift; cmd_restart "$@";;
     update)  shift; cmd_update "$@";;
-    migrate) shift; cmd_migrate "$@";;
     deploy)  shift; cmd_deploy "$@";;
     logs)    shift; cmd_logs "$@";;
     status)  shift; cmd_status "$@";;
     shell)   shift; cmd_shell "$@";;
-    remote)  shift; cmd_remote "$@";;
     -h|--help|help|"") usage;;
     *)
         echo "Unknown command: $1" >&2
