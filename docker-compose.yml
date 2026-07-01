@@ -42,11 +42,17 @@ services:
       # Blog event store (ReckonDB). Persisted on the blog_store_data volume
       # below so the event log survives image auto-updates (watchtower).
       BLOG_STORE_DATA_DIR: ${BLOG_STORE_DATA_DIR:-/data/blog_store}
-      # Mailgun — same account as macula-realm, different verified domain.
-      # Required by reckon-portal's runtime.exs (release raises if either
-      # API_KEY or DOMAIN is missing). Used for the contact form.
-      RECKON_MAILGUN_API_KEY: ${RECKON_MAILGUN_API_KEY:?RECKON_MAILGUN_API_KEY is required}
-      RECKON_MAILGUN_DOMAIN:  ${RECKON_MAILGUN_DOMAIN:?RECKON_MAILGUN_DOMAIN is required}
+      # Mail runs through Macula's Mailgun on the macula.io domain, since
+      # reckon-db.org has no verified sending domain. reckon-portal reads
+      # MACULA_MAILGUN_* (From is noreply@macula.io); without them it falls back
+      # to the Swoosh Local adapter (no send, no crash), mirroring macula-realm.
+      MACULA_MAILGUN_API_KEY: ${MACULA_MAILGUN_API_KEY:-}
+      MACULA_MAILGUN_DOMAIN: ${MACULA_MAILGUN_DOMAIN:-}
+      MACULA_MAILGUN_BASE_URL: ${MACULA_MAILGUN_BASE_URL:-https://api.eu.mailgun.net/v3}
+      # Transitional: the previous image read these. Drop once the MACULA_*-reading
+      # image has fully rolled out.
+      RECKON_MAILGUN_API_KEY: ${RECKON_MAILGUN_API_KEY:-}
+      RECKON_MAILGUN_DOMAIN: ${RECKON_MAILGUN_DOMAIN:-}
       RECKON_MAILGUN_BASE_URL: ${RECKON_MAILGUN_BASE_URL:-https://api.eu.mailgun.net/v3}
       RECKON_MAILGUN_FROM_EMAIL: ${RECKON_MAILGUN_FROM_EMAIL:-noreply@reckon-db.org}
     volumes:

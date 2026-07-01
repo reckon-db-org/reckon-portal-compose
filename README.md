@@ -28,8 +28,8 @@ cd reckon-portal-compose
 cp .env.example .env
 # edit .env — at minimum:
 #   SECRET_KEY_BASE          (mix phx.gen.secret OR openssl rand -base64 64)
-#   RECKON_MAILGUN_API_KEY   (for the contact form)
-#   RECKON_MAILGUN_DOMAIN
+#   MACULA_MAILGUN_API_KEY   (for the contact form; copy from macula-realm)
+#   MACULA_MAILGUN_DOMAIN    (mg.macula.io)
 
 # 4. Bring it up
 ./scripts/deploy.sh init
@@ -51,7 +51,7 @@ DNS prerequisite: `reckon-db.org` A record points at the VM. Caddy will provisio
 
 ## Required env vars
 
-See `.env.example`. The compose file errors out at `up` time if `SECRET_KEY_BASE`, `RECKON_MAILGUN_API_KEY` or `RECKON_MAILGUN_DOMAIN` are missing — no silent fallbacks.
+See `.env.example`. The compose file errors out at `up` time if `SECRET_KEY_BASE` is missing. Mail (`MACULA_MAILGUN_*`) is optional: without it the contact form falls back to the Swoosh Local adapter (no send, no crash).
 
 ## DNS + domains
 
@@ -61,11 +61,16 @@ Caddy serves the apex `reckon-db.org` and 301s `www.reckon-db.org` → apex. To 
 
 ## Mailgun
 
-Shares the **same Mailgun account** as `macula-realm-compose`. Wire-up:
-1. Copy the API key value from macula-realm's `.env` (`MACULA_MAILGUN_API_KEY`) into `RECKON_MAILGUN_API_KEY` here.
-2. Add a Mailgun-verified sending domain `mg.reckon-db.org` (DNS records via the Mailgun dashboard).
+reckon-db.org has no verified sending domain, so mail runs entirely through
+**Macula's Mailgun** on `mg.macula.io` (From `noreply@macula.io`), exactly like
+`macula-realm`. Wire-up:
+1. Copy `MACULA_MAILGUN_API_KEY`, `MACULA_MAILGUN_DOMAIN` (`mg.macula.io`) and
+   `MACULA_MAILGUN_BASE_URL` (`https://api.eu.mailgun.net/v3`) from macula-realm's
+   `.env` into this deployment's `.env`.
 
-That's it — `reckon-portal/system/config/runtime.exs` reads these env vars and `raise`s if `RECKON_MAILGUN_API_KEY` or `RECKON_MAILGUN_DOMAIN` is missing. The compose file matches that contract with `:?` defaults so missing values fail at `up` time, not deep in a release crash log.
+`reckon-portal/system/config/runtime.exs` enables the Mailgun adapter only when
+`MACULA_MAILGUN_API_KEY` is present, and otherwise falls back to the Swoosh Local
+adapter — mirroring macula-realm, so a missing key never crashes the release.
 
 ## What's NOT here
 
