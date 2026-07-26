@@ -10,7 +10,7 @@
 # Repo, so nothing touches the database.
 set -eu
 
-PORTAL_DIR="${PORTAL_DIR:-$HOME/work/codeberg.org/reckon-internal/reckon-portal/system}"
+PORTAL_DIR="${PORTAL_DIR:-$HOME/work/github.com/reckon-db-org/reckon-portal/system}"
 IMAGE="reckon-portal:smoke"
 VOL="blog_smoke_vol"
 
