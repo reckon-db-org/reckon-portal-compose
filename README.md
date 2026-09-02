@@ -21,7 +21,7 @@ On the target VM (`ssh root@reckon-db.org`):
 curl -fsSL https://get.docker.com | sh
 
 # 2. Clone this repo
-git clone https://codeberg.org/reckon-internal/reckon-portal-compose
+git clone https://github.com/reckon-db-org/reckon-portal-compose
 cd reckon-portal-compose
 
 # 3. Configure
