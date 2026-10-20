@@ -1,0 +1,62 @@
+name: ci
+
+# Shellcheck and a compose config check on every push to a branch and every pull
+# request.
+#
+# THIS REPOSITORY HAD NO CI. It is an operational repository: a compose file and
+# the scripts that deploy, publish and smoke-test with it. Nothing checked that
+# either still parses, so a typo in a deploy script or a compose file that a
+# newer Compose rejects was found on the box, by the person running it.
+#
+# `config --no-interpolate` validates the structure without asking for the
+# secrets the file interpolates. That is deliberate: the values live outside git
+# by design, and a gate that needed them could not run on a pull request from
+# anyone. What it still catches is the real failure: a broken file, a service
+# that names a dependency it does not have, a key Compose no longer accepts.
+#
+# On push and pull request, not dispatch-only: the failure mode being prevented
+# is "nobody remembered to run it", and a gate that only runs when someone
+# remembers preserves exactly that condition.
+#
+# `branches: ['**']` IS LOAD-BEARING. A `push` event fires for tag refs as well,
+# so without it this would run a second time on every release tag. `**` matches
+# every branch and excludes tags.
+
+on:
+  push:
+    branches: ['**']
+    paths-ignore: ['**.md']
+  pull_request:
+    paths-ignore: ['**.md']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: shellcheck + compose config
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # shellcheck ships on this image. Every tracked script: these run against
+      # a live host, where a quoting mistake is a wildcard aimed at the wrong
+      # container or directory.
+      - name: Shellcheck
+        run: shellcheck $(git ls-files '*.sh')
+
+      - name: Compose config
+        run: |
+          set -uo pipefail
+          status=0
+          for f in $(git ls-files 'docker-compose*.yml' 'docker-compose*.yaml' 'compose*.yml' 'compose*.yaml'); do
+            echo "== $f"
+            docker compose -f "$f" config --no-interpolate -q || status=1
+          done
+          exit "$status"
